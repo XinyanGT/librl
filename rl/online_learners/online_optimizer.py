@@ -58,7 +58,7 @@ class Reg:
         self.refpol.assign(policy)
         self.varpol.assign(policy)
         if len(obs) > self.samples_limit:
-            obs = obs[np.random.choice(len(obs), limit, replace=False)]
+            obs = obs[np.random.choice(len(obs), self.samples_limit, replace=False)]
         self.obs = np.copy(obs)
 
     @property
