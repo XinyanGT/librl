@@ -17,6 +17,7 @@ Piccolo = OO.Piccolo
 
 # Below we define special online optimizer that uses policy and ro informaiton.
 
+
 class Reg:
     # Regularization based on KL divergence between policies
     def __init__(self, policy,
@@ -72,11 +73,12 @@ class Reg:
 class FisherOnlineOptimizer(OO.BasicOnlineOptimizer):
     """ Wrap BasicOnlineOptimizer to use Fisher information matrix  when the base_alg is
         SecondOrderUpdate. """
+
     def __init__(self,  base_alg, p=0.0,
                  policy=None,
                  fisher_damping=0.1,
-		 fisher_sample_limit=100000,
-		 **kwargs):
+                 fisher_sample_limit=100000,
+                 **kwargs):
         """ `policy` needs to be provided. """
         assert isinstance(base_alg, BA.SecondOrderUpdate)
         super().__init__(base_alg, p=p, **kwargs)
@@ -230,7 +232,6 @@ def _rlPiccoloOptDecorator(cls):
 
 # =====================================================================================
 # Here we define all rl-oriented classes for policy optimization
-
 
 
 # @_rlPiccoloOptDecorator
