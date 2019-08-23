@@ -23,6 +23,7 @@ class AdvantageEstimator(FunctionApproximator):
     """
     # NOTE We overload the interfaces here to work with policies and rollouts.
     # This class can no longer act as a wrapper of usual `FunctionApproximator`.
+
     def __init__(self, ref_policy, name='advantage_func_app',
                  max_n_rollouts=float('Inf'),  # number of samples (i.e. rollouts) to keep
                  max_n_batches=0,  # number of batches (i.e. iterations) to keep
@@ -74,7 +75,7 @@ class AdvantageEstimator(FunctionApproximator):
 class ValueBasedAE(AdvantageEstimator):
     """ An estimator based on value function. """
 
-    DELTA_MAX=0.9999
+    DELTA_MAX = 0.9999
 
     def __init__(self, ref_policy,  # the reference policy
                  vfn,  # value function estimator (SupervisedLearner)
@@ -93,17 +94,16 @@ class ValueBasedAE(AdvantageEstimator):
         # importance sampling
         assert use_is in ['one', 'multi', None]
         self.use_is = use_is
-        if horizon is None and delta is None and np.isclose(gamma,1.):
-            delta = min(gamma, DELTA_MAX)  # to make value learning well-defined
+        if horizon is None and delta is None and np.isclose(gamma, 1.):
+            delta = min(gamma, self.DELTA_MAX)  # to make value learning well-defined
         self.horizon = float('Inf') if horizon is None else horizon
-
-        self._pe = PE.PerformanceEstimate( # a helper function
-                        gamma=gamma, lambd=lambd,delta=delta)
-        self._spe = PE.SimplePerformanceEstimate( # a faster version
-                        gamma=gamma, lambd=lambd, delta=delta)
+        # a helper function
+        self._pe = PE.PerformanceEstimate(gamma=gamma, lambd=lambd, delta=delta)
+        # a faster version        
+        self._spe = PE.SimplePerformanceEstimate(gamma=gamma, lambd=lambd, delta=delta)
 
         # policy evaluation
-        assert 0<=pe_lambd<=1 or pe_lambd is None
+        assert 0 <= pe_lambd <= 1 or pe_lambd is None
         self.pe_lambd = pe_lambd  # user-defined self.pe_lambda-weighted td error
         if np.isclose(self.pe_lambd, 1.0):
             n_pe_updates = 1
@@ -111,8 +111,8 @@ class ValueBasedAE(AdvantageEstimator):
         self._n_pe_updates = n_pe_updates
         assert isinstance(vfn, SupervisedLearner)
         self.vfn = vfn
-        self.vfn._dataset.max_n_samples=0  # since we aggregate rollouts here
-        self.vfn._dataset.max_n_batches=0
+        self.vfn._dataset.max_n_samples = 0  # since we aggregate rollouts here
+        self.vfn._dataset.max_n_batches = 0
 
         # initialize the replay buffer
         super().__init__(ref_policy, name=name, **kwargs)
@@ -137,10 +137,10 @@ class ValueBasedAE(AdvantageEstimator):
 
     def update(self, ro, **kwargs):
         """ Policy evaluation """
-        if len(ro)>0:
+        if len(ro) > 0:
             self.buffer.append(ro)  # update the replay buffer
-        ro = self.buffer[None] # join all the ros in the replay buffer
-        if len(ro)>0:
+        ro = self.buffer[None]  # join all the ros in the replay buffer
+        if len(ro) > 0:
             print('Replay buffer: {} batches, {} rollouts, {} samples'.format(len(self.buffer), len(ro), ro.n_samples))
             w = np.concatenate(self.weights(ro)) if self.use_is else 1.0
             for i in range(self._n_pe_updates):
@@ -181,7 +181,7 @@ class ValueBasedAE(AdvantageEstimator):
 
     # Required methods of FunctionApproximator
     def predict(self, xs, **kwargs):
-        raise np.zeros((len(xs),1))
+        raise np.zeros((len(xs), 1))
 
     @property
     def variable(self):
