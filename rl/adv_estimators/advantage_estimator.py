@@ -143,7 +143,7 @@ class ValueBasedAE(AdvantageEstimator):
         if len(ro) > 0:
             print('Replay buffer: {} batches, {} rollouts, {} samples'.format(len(self.buffer), len(ro), ro.n_samples))
             w = np.concatenate(self.weights(ro)) if self.use_is else 1.0
-            for i in range(self._n_pe_updates):
+            for _ in range(self._n_pe_updates):
                 v_hat = (w*np.concatenate(self.qfns(ro, self.pe_lambd))).reshape([-1, 1])  # target
                 results, ev0, ev1 = self.vfn.update(ro['obs_short'], v_hat, **kwargs)
             return results, ev0, ev1
@@ -162,7 +162,7 @@ class ValueBasedAE(AdvantageEstimator):
         """
         use_is = use_is or self.use_is
         vfns = self.vfns(ro)
-        if use_is is 'multi':
+        if use_is == 'multi':
             ws = self.weights(ro, ref_policy)  # importance weight
             advs = [self._pe.adv(rollout.rws, vf, rollout.done, w=w, lambd=lambd)
                     for rollout, vf, w in zipsame(ro, vfns, ws)]

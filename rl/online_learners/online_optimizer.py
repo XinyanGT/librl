@@ -2,20 +2,39 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-from abc import ABC
-import numpy as np
-import tensorflow as tf
 import copy
-import rl.core.utils.tf_utils as U
+from abc import abstractmethod
+import numpy as np
 from rl.core.online_learners import online_optimizer as OO
 from rl.core.online_learners import base_algorithms as BA
 from rl.core.function_approximators.policies import Policy
 
 
-BasicOnlineOptimizer = OO.BasicOnlineOptimizer
-Piccolo = OO.Piccolo
-
 # Below we define special online optimizer that uses policy and ro informaiton.
+# May need to consider how to use them in Fitted Q-learning.
+class rlOnlineOptimizer(OO.OnlineLearner):
+    @abstractmethod
+    def update(self, g, ro=None, **kwargs):
+        # To catch the additional keyword `ro` that will be appearing often in rl.
+        super().update(g, **kwargs)
+
+
+class BasicOnlineOptimizer(rlOnlineOptimizer, OO.BasicOnlineOptimizer):
+    def update(self, g, ro=None, **kwargs):
+        super().update(g, ro=ro, **kwargs)
+
+
+class Piccolo(rlOnlineOptimizer, OO.Piccolo):
+    def __init__(self, base_alg, p=0.0, pred_oracle=None):
+        # pred_oracle: the oracle for the prediction step.
+        assert pred_oracle is not None
+        self.pred_oracle = pred_oracle
+        super().__init__(base_alg, p=0.0)
+
+    def update(self, g, ro=None):
+        super().update(g, mode='correct')
+        g_hat = self.pred_oracle.grad(self.x)
+        super().update(g_hat, mode='predict')
 
 
 class Reg:
@@ -70,38 +89,35 @@ class Reg:
         return not self.obs is None
 
 
-class FisherOnlineOptimizer(OO.BasicOnlineOptimizer):
+class FisherOnlineOptimizer(BasicOnlineOptimizer):
     """ Wrap BasicOnlineOptimizer to use Fisher information matrix  when the base_alg is
         SecondOrderUpdate. """
 
-    def __init__(self,  base_alg, p=0.0,
-                 policy=None,
-                 fisher_damping=0.1,
-                 fisher_sample_limit=100000,
-                 **kwargs):
+    def __init__(self, base_alg, p=0.0,
+                 policy=None, fisher_damping=0.1, fisher_sample_limit=100000):
         """ `policy` needs to be provided. """
         assert isinstance(base_alg, BA.SecondOrderUpdate)
-        super().__init__(base_alg, p=p, **kwargs)
+        super().__init__(base_alg, p=p, policy=policy)
+        # The policy will be deep copied.
         self._reg = Reg(policy, default_damping=fisher_damping,
                         samples_limit=fisher_sample_limit)
 
-    def update(self, *args, ro=None, policy=None, **kwargs):
+    def update(self, g, ro=None, policy=None, loss_fun=None):
         assert ro is not None
         assert policy is not None
         assert np.all(np.isclose(policy.variable, self.x))
         self._reg.update(ro['obs'], policy)
         if isinstance(self._base_alg, BA.TrustRegionSecondOrderUpdate):
-            super().update(*args, mvp=self._reg.fvp, dist_fun=self._reg.kl, **kwargs)
+            super().update(g, mvp=self._reg.fvp, dist_fun=self._reg.kl, loss_fun=loss_fun)
         elif isinstance(self._base_alg, BA.RobustAdaptiveSecondOrderUpdate):
             # Has to go before AdaptiveSecondOrderUpdate
-            super().update(*args, mvp=self._reg.fvp, dist_fun=self._reg.kl, **kwargs)
+            super().update(g, mvp=self._reg.fvp, dist_fun=self._reg.kl, loss_fun=loss_fun)
         elif isinstance(self._base_alg, BA.AdaptiveSecondOrderUpdate):
-            super().update(*args, mvp=self._reg.fvp, **kwargs)
+            super().update(g, mvp=self._reg.fvp)
         else:
             raise NotImplementedError
 
 
-# TODO
 class FisherPiccolo(Piccolo):
     """ A decorator class for using Fisher information matrix (and KL
         divergence) as the regularization, in OO.Piccolo.
@@ -109,7 +125,7 @@ class FisherPiccolo(Piccolo):
     # We use Fisher information matrix and KL divergence to define the mvp (and
     # dist_fun) used in SecondOrderUpdate
 
-    def __init__(self, policy, base_alg, p=0.0, use_shift=True, damping=0.1, **kwargs):
+    def __init__(self, policy, base_alg, p=0.0, use_shift=True, damping=0.1):
         assert isinstance(base_alg, BA.SecondOrderUpdate)
         super().__init__(policy, base_alg, p=p, **kwargs)
         # It uses reg_new and reg_old to define the regularization

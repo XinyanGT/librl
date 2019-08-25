@@ -2,12 +2,15 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-import functools, copy
-import time, os
+import functools
+import copy
+import time
+import os
 import numpy as np
 from rl.algorithms import Algorithm
 from rl.core.utils.misc_utils import safe_assign, timed
 from rl.core.utils import logz
+
 
 class Experimenter:
 
@@ -31,14 +34,14 @@ class Experimenter:
         """
         ros, agents = mdp.run(agent, **self.ro_kwargs)
         # Log
-        ro = functools.reduce(lambda x,y: x+y, ros)
+        ro = functools.reduce(lambda x, y: x+y, ros)
         if not eval_mode:
             self._n_rollouts += len(ro)
             self._n_samples += ro.n_samples
         if to_log:
             # current ro
             gamma = mdp.gamma
-            sum_of_rewards = [ ((gamma**np.arange(len(r.rws)))*r.rws).sum() for r in ro]
+            sum_of_rewards = [((gamma**np.arange(len(r.rws)))*r.rws).sum() for r in ro]
             performance = np.mean(sum_of_rewards)
             rollout_lens = [len(rollout) for rollout in ro]
             n_samples = sum(rollout_lens)
@@ -96,12 +99,10 @@ class Experimenter:
             self._save_policy(self.best_policy, 'best')
 
         if final_eval:
-            self.gen_ro(self.agent('target'), mdp=self.mdp, to_log=True, eval_mode=True)
+            self.gen_ro(self.alg.agent('target'), mdp=self.mdp, to_log=True, eval_mode=True)
             logz.dump_tabular()
 
     def _save_policy(self, policy, suffix):
-        path = os.path.join(logz.LOG.output_dir,'saved_policies')
+        path = os.path.join(logz.LOG.output_dir, 'saved_policies')
         name = policy.name+'_'+str(suffix)
         policy.save(path, name=name)
-
-

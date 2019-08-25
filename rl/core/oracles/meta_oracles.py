@@ -20,13 +20,17 @@ class MvAvgOracle(MetaOracle):
     """Function-based oracle based on moving average."""
 
     def __init__(self, base_oracle, beta=0.):
-        self._base_oracle = copy.deepcopy(base_oracle)
+        # self._base_oracle = copy.deepcopy(base_oracle)
+        # hard to make sure the base oracle is the same as outside
+        # therefore, pass by reference
+        self._base_oracle = base_oracle  
         self._beta = beta
         self._f = ExpMvAvg(None, beta)
         self._g = ExpMvAvg(None, beta)
 
-    def update(self, x, *args, **kwargs):
-        self._base_oracle.update(*args, **kwargs)
+    def update(self, x):        
+    # def update(self, x, *args, **kwargs):
+        # self._base_oracle.update(*args, **kwargs)
         self._f.update(self._base_oracle.fun(x))
         self._g.update(self._base_oracle.grad(x))
 

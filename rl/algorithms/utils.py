@@ -3,33 +3,43 @@
 
 import numpy as np
 from rl import online_learners as ol
-from rl.online_learners import base_algorithms as balg
+from rl.core.online_learners import base_algorithms as balg
+from rl import oracles as orc
 
 
-def get_learner(optimizer, policy, scheduler, max_kl=None):
-    """ Return an first-order optimizer. """
+def get_optimizer(name, policy, scheduler, max_kl=None):
     x0 = policy.variable
-    if optimizer == 'adam':
-        return ol.BasicOnlineOptimizer(balg.Adam(x0, scheduler))
-    elif optimizer == 'natgrad':
-        return ol.FisherOnlineOptimizer(
-            balg.AdaptiveSecondOrderUpdate(x0, scheduler),
-            policy=policy)
-    elif optimizer == 'rnatgrad':
-        return ol.FisherOnlineOptimizer(
-            balg.RobustAdaptiveSecondOrderUpdate(x0, scheduler, max_dist=max_kl),
-            policy=policy)
-    elif 'trpo' in optimizer:
-        return ol.FisherOnlineOptimizer(
-            balg.TrustRegionSecondOrderUpdate(x0, scheduler),
-            policy=policy)
-    else:
-        raise NotImplementedError
+    if name == 'adam':
+        return balg.Adam(x0, scheduler)
+    if name == 'natgrad':
+        return balg.AdaptiveSecondOrderUpdate(x0, scheduler)
+    if name == 'rnatgrad':
+        return balg.RobustAdaptiveSecondOrderUpdate(x0, scheduler, max_dist=max_kl)
+    if name == 'trpo':
+        return balg.TrustRegionSecondOrderUpdate(x0, scheduler)
+    raise NotImplementedError
 
-# For sampling random step to rollout
+
+def get_pred_oracle(name, **kwargs):
+    if name == 'mvavg':
+        return orc.MvAvgOracle(**kwargs)
+    raise NotImplementedError
+
+
+def get_learner(optimizer, policy, pred_oracle=None):
+    """ Return an first-order optimizer. """
+    if isinstance(optimizer, balg.Adam):
+        if pred_oracle is not None:
+            return ol.Piccolo(optimizer, pred_oracle=pred_oracle)
+        return ol.BasicOnlineOptimizer(optimizer)
+    return ol.FisherOnlineOptimizer(optimizer, policy=policy)
+
+
+"""For sampling random step to rollout"""
 
 
 def natural_t(horizon, gamma):
+
     if horizon < float('Inf'):
         p0 = gamma**np.arange(horizon)
         sump0 = np.sum(p0)
